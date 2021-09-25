@@ -26,6 +26,8 @@ static DynamicHook g_DHookRoundRespawn;
 static RoundState g_PreHookRoundState;
 static TFTeam g_PreHookTeam;	//NOTE: For clients, use the MvMPlayer methodmap
 
+bool isMiniBoss[36];
+
 void DHooks_Initialize(GameData gamedata)
 {
 	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);
@@ -412,15 +414,23 @@ public MRESReturn DHookCallback_ApplyRoboSapperEffects_Pre(int sapper, DHookRetu
 {
 	int target = params.Get(1);
 	
-	//Minibosses in MvM get slowed down instead of fully stunned
-	SetEntProp(target, Prop_Send, "m_bIsMiniBoss", true);
+	isMiniBoss[target] = view_as<bool>(GetEntProp(target, Prop_Send, "m_bIsMiniBoss"));
+	
+	if(!isMiniBoss[target])
+	{
+		//Minibosses in MvM get slowed down instead of fully stunned
+		SetEntProp(target, Prop_Send, "m_bIsMiniBoss", true);
+	}
 }
 
 public MRESReturn DHookCallback_ApplyRoboSapperEffects_Post(int sapper, DHookReturn ret, DHookParam params)
 {
 	int target = params.Get(1);
 	
-	SetEntProp(target, Prop_Send, "m_bIsMiniBoss", false);
+	if(!isMiniBoss[target])
+	{
+		SetEntProp(target, Prop_Send, "m_bIsMiniBoss", false);
+	}
 }
 
 public MRESReturn DHookCallback_MyTouch_Pre(int currencypack, DHookReturn ret, DHookParam params)
