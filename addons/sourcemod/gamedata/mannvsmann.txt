@@ -124,6 +124,16 @@
 				"linux"		"@_Z20UTIL_RemoveImmediateP11CBaseEntity"
 				"windows"	"\x55\x8B\xEC\x56\x8B\x75\x08\x85\xF6\x74\x2A\xF6\x86\x14\x01\x00\x00\x01"
 			}
+			"CMannVsMachineUpgradeManager::LevelInitPostEntity"
+			{
+				"linux"		"@_ZN28CMannVsMachineUpgradeManager19LevelInitPostEntityEv"
+				"windows"	"\xA1\x2A\x2A\x2A\x2A\xBA\x2A\x2A\x2A\x2A\x56\x8D\xB0\x98\x09\x00\x00"
+			}
+			"CMannVsMachineUpgradeManager::LoadUpgradesFileFromPath"
+			{
+				"linux"		"@_ZN28CMannVsMachineUpgradeManager24LoadUpgradesFileFromPathEPKc"
+				"windows"	"\x55\x8B\xEC\x53\x56\x8B\x75\x08\x8B\xD9\x57\x56"
+			}
 		}
 		"Offsets"
 		{
@@ -476,6 +486,13 @@
 				"hooktype"	"gamerules"
 				"return"	"void"
 				"this"		"ignore"
+			}
+			"CMannVsMachineUpgradeManager::LevelInitPostEntity"
+			{
+				"signature" "CMannVsMachineUpgradeManager::LevelInitPostEntity"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"		"address"
 			}
 		}
 		"Addresses"

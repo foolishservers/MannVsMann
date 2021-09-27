@@ -54,6 +54,7 @@ ConVar mvm_upgrades_reset_mode;
 ConVar mvm_spawn_protection;
 ConVar mvm_enable_music;
 ConVar mvm_nerf_upgrades;
+ConVar mvm_custom_upgrade;
 
 //DHooks
 TFTeam g_CurrencyPackTeam;
@@ -65,6 +66,8 @@ int g_OffsetCurrencyPackAmount;
 int g_OffsetRestoringCheckpoint;
 
 //Other globals
+Address g_MannVsMachineUpgrades = Address_Null;
+char g_strCustomUpgradePath[PLATFORM_MAX_PATH];
 Handle g_HudSync;
 Menu g_RespecMenu;
 bool g_IsMapRunning;
@@ -100,6 +103,9 @@ public void OnPluginStart()
 	mvm_currency_rewards_player_catchup_max = CreateConVar("mvm_currency_rewards_player_catchup_max", "1.5", "Maximum currency bonus multiplier for losing teams.", _, true, 1.0);
 	mvm_currency_hud_position_x = CreateConVar("mvm_currency_hud_position_x", "-1", "x coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
 	mvm_currency_hud_position_y = CreateConVar("mvm_currency_hud_position_y", "0.75", "y coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
+	mvm_custom_upgrade = CreateConVar("mvm_custom_upgrade", "", "Set custom upgrades file for stations.");
+
+	mvm_custom_upgrade.AddChangeHook(ConVarHook);
 	
 	mvm_upgrades_reset_mode = CreateConVar("mvm_upgrades_reset_mode", "0", "How player upgrades and credits are reset after a full round has been played. 0 = Reset upgrades and credits when teams are being switched. 1 = Always reset upgrades and credits. 2 = Never reset upgrades and credits.");
 	mvm_spawn_protection = CreateConVar("mvm_spawn_protection", "1", "When set to 1, players are granted ubercharge while they leave their spawn.");
@@ -151,6 +157,30 @@ public void OnPluginStart()
 	}
 }
 
+public void ConVarHook(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	char name[128];
+	convar.GetName(name, sizeof(name));
+
+	if(StrEqual(name, "mvm_custom_upgrade"))
+	{
+		strcopy(g_strCustomUpgradePath, PLATFORM_MAX_PATH, newValue);
+
+		if(g_strCustomUpgradePath[0] != '\0')
+		{
+			// FIXME: Not working on first map.
+			LoadStationStats(g_strCustomUpgradePath);
+
+			if(g_MannVsMachineUpgrades != Address_Null)
+			{
+				char F[PLATFORM_MAX_PATH];
+				Format(F, sizeof(F), "scripts/items/%s.txt", g_strCustomUpgradePath);
+				SDKCall_LoadUpgradesFileFromPath(F);
+			}
+		}
+	}
+}
+
 public void OnPluginEnd()
 {
 	Patches_Destroy();
@@ -193,6 +223,20 @@ public void OnMapStart()
 	PrecacheSound(SOUND_CREDITS_UPDATED);
 	
 	DHooks_HookGameRules();
+	
+	mvm_custom_upgrade.GetString(g_strCustomUpgradePath, PLATFORM_MAX_PATH);
+	if(g_strCustomUpgradePath[0] != '\0')
+	{
+		// FIXME: Not working on first map.
+		LoadStationStats(g_strCustomUpgradePath);
+
+		if(g_MannVsMachineUpgrades != Address_Null)
+		{
+			char F[PLATFORM_MAX_PATH];
+			Format(F, sizeof(F), "scripts/items/%s.txt", g_strCustomUpgradePath);
+			SDKCall_LoadUpgradesFileFromPath(F);
+		}
+	}
 	
 	//An info_populator entity is required for a lot of MvM-related stuff (preserved entity)
 	CreateEntityByName("info_populator");

@@ -1,0 +1,36 @@
+/*
+ * Copyright (C) 2021  Mikusch
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+"Phrases"
+{
+	"MvM_Hint_HowToUpgrade"
+	{
+		"ko"	"보급소를 방문하여 무기와 플레이어 자신을 업그레이드 하세요!"
+	}
+	"MvM_Upgrade_DisposableSentry"
+	{
+		"ko"	"\"build 2 0\" 콘솔 명령어(%%build 2 0%%)을 사용하여 일회용 센트리건을 설치 할 수 있습니다."
+	}
+	"MvM_UpgradeStation"
+	{
+		"ko"	"무기 개선실"
+	}
+	"MvM_UpgradeRespec"
+	{
+		"ko"	"업그레이드 환불하기"
+	}
+}

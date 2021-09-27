@@ -30,6 +30,7 @@ bool isMiniBoss[36];
 
 void DHooks_Initialize(GameData gamedata)
 {
+	CreateDynamicDetour(gamedata, "CMannVsMachineUpgradeManager::LevelInitPostEntity", _, DHookCallback_LevelInitPostEntity_Post);
 	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);
 	CreateDynamicDetour(gamedata, "CPopulationManager::Update", DHookCallback_PopulationManagerUpdate_Pre, _);
 	CreateDynamicDetour(gamedata, "CPopulationManager::ResetMap", DHookCallback_PopulationManagerResetMap_Pre, DHookCallback_PopulationManagerResetMap_Post);
@@ -118,6 +119,12 @@ static DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 		LogError("Failed to create hook setup handle for %s", name);
 	
 	return hook;
+}
+public MRESReturn DHookCallback_LevelInitPostEntity_Post(Address address)
+{
+	g_MannVsMachineUpgrades = address;
+	LogMessage("Loaded g_MannVsMachineUpgrades = %X", g_MannVsMachineUpgrades);
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_ApplyUpgradeToItem_Pre()
@@ -398,16 +405,18 @@ public MRESReturn DHookCallback_ShouldQuickBuild_Pre(int obj)
 {
 	SetMannVsMachineMode(true);
 	
+	/*
 	//Sentries owned by MvM defenders can be re-deployed quickly, move the sentry to the defender team
 	g_PreHookTeam = TF2_GetTeam(obj);
 	TF2_SetTeam(obj, TFTeam_Red);
+	*/
 }
 
 public MRESReturn DHookCallback_ShouldQuickBuild_Post(int obj, DHookReturn ret)
 {
 	ResetMannVsMachineMode();
 	
-	TF2_SetTeam(obj, g_PreHookTeam);
+	//TF2_SetTeam(obj, g_PreHookTeam);
 }
 
 public MRESReturn DHookCallback_ApplyRoboSapperEffects_Pre(int sapper, DHookReturn ret, DHookParam params)

@@ -154,3 +154,19 @@ int CalculateCurrencyAmount(int attacker)
 	
 	return RoundToCeil(amount);
 }
+
+stock void LoadStationStats(char[] path)
+{
+	char F[PLATFORM_MAX_PATH];
+	Format(F, sizeof(F), "scripts/items/%s.txt", path);
+
+	PrecacheGeneric(F, true);
+	AddFileToDownloadsTable(F);
+
+	int edict = FindEntityByClassname(-1, "tf_gamerules");
+	if(edict == -1)	return;
+
+	Format(F, sizeof(F), "download/scripts/items/%s.txt", path);
+	SetVariantString(F);
+	AcceptEntityInput(edict, "SetCustomUpgradesFile");
+}
