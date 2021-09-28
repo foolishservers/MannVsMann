@@ -30,7 +30,7 @@ bool isMiniBoss[36];
 
 void DHooks_Initialize(GameData gamedata)
 {
-	CreateDynamicDetour(gamedata, "CMannVsMachineUpgradeManager::LevelInitPostEntity", _, DHookCallback_LevelInitPostEntity_Post);
+	CreateDynamicDetour(gamedata, "CMannVsMachineUpgradeManager::LoadUpgradesFile", _, DHookCallback_LoadUpgradesFile_Post);
 	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);
 	CreateDynamicDetour(gamedata, "CPopulationManager::Update", DHookCallback_PopulationManagerUpdate_Pre, _);
 	CreateDynamicDetour(gamedata, "CPopulationManager::ResetMap", DHookCallback_PopulationManagerResetMap_Pre, DHookCallback_PopulationManagerResetMap_Post);
@@ -120,10 +120,10 @@ static DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	
 	return hook;
 }
-public MRESReturn DHookCallback_LevelInitPostEntity_Post(Address address)
+public MRESReturn DHookCallback_LoadUpgradesFile_Post(Address address)
 {
 	g_MannVsMachineUpgrades = address;
-	LogMessage("Loaded g_MannVsMachineUpgrades = %X", g_MannVsMachineUpgrades);
+	//LogMessage("Loaded g_MannVsMachineUpgrades = %X", g_MannVsMachineUpgrades);
 	return MRES_Ignored;
 }
 
