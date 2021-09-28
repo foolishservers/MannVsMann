@@ -535,7 +535,7 @@ public MRESReturn DHookCallback_RoundRespawn_Pre()
 	{
 		if (g_ForceMapReset)
 		{
-			g_ForceMapReset = !g_ForceMapReset;
+			g_ForceMapReset = false;
 			
 			//Reset accumulated team credits on a full reset
 			MvMTeam(TFTeam_Red).AcquiredCredits = 0;
