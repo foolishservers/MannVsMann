@@ -56,6 +56,7 @@ ConVar mvm_spawn_protection;
 ConVar mvm_enable_music;
 ConVar mvm_nerf_upgrades;
 ConVar mvm_custom_upgrade;
+ConVar mvm_enable;
 
 //DHooks
 TFTeam g_CurrencyPackTeam;
@@ -73,6 +74,7 @@ Handle g_HudSync;
 Menu g_RespecMenu;
 bool g_IsMapRunning;
 bool g_ForceMapReset;
+bool g_Enabled;
 
 #include "mannvsmann/methodmaps.sp"
 
@@ -105,8 +107,10 @@ public void OnPluginStart()
 	mvm_currency_hud_position_x = CreateConVar("mvm_currency_hud_position_x", "-1", "x coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
 	mvm_currency_hud_position_y = CreateConVar("mvm_currency_hud_position_y", "0.75", "y coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
 	mvm_custom_upgrade = CreateConVar("mvm_custom_upgrade", "", "Set custom upgrades file for stations.");
-
-	mvm_custom_upgrade.AddChangeHook(ConVarHook);
+	mvm_enable = CreateConVar("mvm_enable", "1", "When set to 0, disable Mann vs. Mann");
+	
+	mvm_custom_upgrade.AddChangeHook(ConVar_CustomUpgrade);
+	mvm_enable.AddChangeHook(ConVar_EnableChanged);
 	
 	mvm_upgrades_reset_mode = CreateConVar("mvm_upgrades_reset_mode", "0", "How player upgrades and credits are reset after a full round has been played. 0 = Reset upgrades and credits when teams are being switched. 1 = Always reset upgrades and credits. 2 = Never reset upgrades and credits.");
 	mvm_spawn_protection = CreateConVar("mvm_spawn_protection", "1", "When set to 1, players are granted ubercharge while they leave their spawn.");
@@ -146,44 +150,12 @@ public void OnPluginStart()
 	{
 		SetFailState("Could not find mannvsmann gamedata");
 	}
-	
-	for (int client = 1; client <= MaxClients; client++)
-	{
-		if (IsClientInGame(client))
-		{
-			OnClientPutInServer(client);
-		}
-	}
-}
-
-public void ConVarHook(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	char name[128];
-	convar.GetName(name, sizeof(name));
-
-	if(StrEqual(name, "mvm_custom_upgrade"))
-	{
-		strcopy(g_strCustomUpgradePath, PLATFORM_MAX_PATH, newValue);
-
-		if(g_strCustomUpgradePath[0] != '\0')
-		{
-			// FIXME: Not working on first map.
-			LoadStationStats(g_strCustomUpgradePath);
-
-			if(g_MannVsMachineUpgrades != Address_Null)
-			{
-				char F[PLATFORM_MAX_PATH];
-				Format(F, sizeof(F), "scripts/items/%s.txt", g_strCustomUpgradePath);
-				SDKCall_LoadUpgradesFileFromPath(F);
-			}
-		}
-	}
 }
 
 public void OnPluginEnd()
 {
-	Patches_Destroy();
-	
+	Patches_Disable();
+
 	//Remove the populator on plugin end
 	int populator = FindEntityByClassname(MaxClients + 1, "info_populator");
 	if (populator != -1)
@@ -215,15 +187,37 @@ public void OnPluginEnd()
 	}
 }
 
+public void OnConfigsExecuted()
+{
+	if (IsMannVsMachineMode())
+	{
+		ResetMannVsMachineMode();
+	}
+}
+
 public void OnMapStart()
 {
 	g_IsMapRunning = true;
 	
-	PrecacheSound(SOUND_CREDITS_UPDATED);
-	
-	DHooks_HookGameRules();
+	RefreshEnable();
 	
 	mvm_custom_upgrade.GetString(g_strCustomUpgradePath, PLATFORM_MAX_PATH);
+	LoadMVMCustomUpgrade();
+}
+
+public void ConVar_CustomUpgrade(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	strcopy(g_strCustomUpgradePath, PLATFORM_MAX_PATH, newValue);
+	LoadMVMCustomUpgrade();
+}
+
+public void ConVar_EnableChanged(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	RefreshEnable();
+}
+
+void LoadMVMCustomUpgrade()
+{
 	if(g_strCustomUpgradePath[0] != '\0')
 	{
 		// FIXME: Not working on first map.
@@ -236,7 +230,28 @@ public void OnMapStart()
 			SDKCall_LoadUpgradesFileFromPath(F);
 		}
 	}
+}
+
+void RefreshEnable()
+{
+	if(mvm_enable.BoolValue) Enable();
+	else Disable();
+}
+
+void Enable()
+{
+	if (g_Enabled) return;
 	
+	g_Enabled = true;
+	
+	Event_Enable();
+	DHook_Enable();
+	Patches_Enable();
+	
+	DHooks_HookGameRules();
+	
+	PrecacheSound(SOUND_CREDITS_UPDATED);
+		
 	//An info_populator entity is required for a lot of MvM-related stuff (preserved entity)
 	CreateEntityByName("info_populator");
 	
@@ -256,6 +271,17 @@ public void OnMapStart()
 	}
 }
 
+void Disable()
+{
+	if (!g_Enabled) return;
+	
+	g_Enabled = false;
+	
+	Event_Disable();
+	DHook_Disable();
+	Patches_Disable();
+}
+
 public void OnMapEnd()
 {
 	g_IsMapRunning = false;
@@ -263,11 +289,15 @@ public void OnMapEnd()
 
 public void OnClientPutInServer(int client)
 {
+	if(!g_Enabled) return;
+
 	SDKHooks_HookClient(client);
 }
 
 public void OnClientDisconnect(int client)
 {
+	if(!g_Enabled) return;
+	
 	MvMPlayer(client).Reset();
 }
 
@@ -278,6 +308,8 @@ public void TF2_OnWaitingForPlayersEnd()
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+	if(!g_Enabled) return;
+
 	DHooks_OnEntityCreated(entity, classname);
 	SDKHooks_OnEntityCreated(entity, classname);
 	
@@ -298,6 +330,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnEntityDestroyed(int entity)
 {
+	if(!g_Enabled) return;
+
 	if (!IsValidEntity(entity))
 		return;
 	
@@ -323,6 +357,8 @@ public void OnEntityDestroyed(int entity)
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
+	if(!g_Enabled) return;
+
 	if (buttons & IN_ATTACK2)
 	{
 		char name[32];
@@ -338,6 +374,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
 {
+	if(!g_Enabled) return;
+
 	if (IsMannVsMachineMode())
 	{
 		ResetMannVsMachineMode();
@@ -346,6 +384,8 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 
 public Action OnClientCommandKeyValues(int client, KeyValues kv)
 {
+	if(!g_Enabled) return Plugin_Continue;
+
 	char section[32];
 	if (kv.GetSectionName(section, sizeof(section)))
 	{
@@ -443,6 +483,8 @@ public Action OnClientCommandKeyValues(int client, KeyValues kv)
 
 public void OnClientCommandKeyValues_Post(int client, KeyValues kv)
 {
+	if(!g_Enabled) return;
+
 	if (IsMannVsMachineMode())
 	{
 		ResetMannVsMachineMode();
@@ -461,6 +503,8 @@ public void OnClientCommandKeyValues_Post(int client, KeyValues kv)
 
 public void TF2_OnConditionAdded(int client, TFCond condition)
 {
+	if(!g_Enabled) return;
+
 	if (condition == TFCond_UberchargedCanteen)
 	{
 		//Prevent players from receiving uber canteens if they are unable to be ubered by mediguns
@@ -473,6 +517,8 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 
 public Action EntityOutput_OnTimer10SecRemain(const char[] output, int caller, int activator, float delay)
 {
+	if(!g_Enabled) return;
+
 	if (mvm_enable_music.BoolValue)
 	{
 		if (GameRules_GetProp("m_bInSetup"))
@@ -484,6 +530,8 @@ public Action EntityOutput_OnTimer10SecRemain(const char[] output, int caller, i
 
 public Action NormalSoundHook(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
+	if(!g_Enabled) return Plugin_Continue;
+
 	Action action = Plugin_Continue;
 	
 	if (IsValidEntity(entity))
@@ -518,6 +566,8 @@ public Action NormalSoundHook(int clients[MAXPLAYERS], int &numClients, char sam
 
 public Action Timer_UpdateHudText(Handle timer)
 {
+	if(!g_Enabled) return;
+
 	SetHudTextParams(mvm_currency_hud_position_x.FloatValue, mvm_currency_hud_position_y.FloatValue, 0.3, 122, 196, 55, 255, _, 0.0, 0.0, 0.0);
 	
 	for (int client = 1; client <= MaxClients; client++)

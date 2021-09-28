@@ -15,6 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+enum struct DetourInfo
+{
+	DynamicDetour detour;
+	char name[64];
+	DHookCallback callbackPre;
+	DHookCallback callbackPost;
+}
+
 //Dynamic hook handles
 static DynamicHook g_DHookMyTouch;
 static DynamicHook g_DHookComeToRest;
@@ -26,13 +34,17 @@ static DynamicHook g_DHookRoundRespawn;
 static RoundState g_PreHookRoundState;
 static TFTeam g_PreHookTeam;	//NOTE: For clients, use the MvMPlayer methodmap
 
+static ArrayList g_DetourInfo;
+
 bool isMiniBoss[36];
 
 void DHooks_Initialize(GameData gamedata)
 {
+	g_DetourInfo = new ArrayList(sizeof(DetourInfo));
+	
 	CreateDynamicDetour(gamedata, "CMannVsMachineUpgradeManager::LoadUpgradesFile", _, DHookCallback_LoadUpgradesFile_Post);
-	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);
 	CreateDynamicDetour(gamedata, "CPopulationManager::Update", DHookCallback_PopulationManagerUpdate_Pre, _);
+	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);	
 	CreateDynamicDetour(gamedata, "CPopulationManager::ResetMap", DHookCallback_PopulationManagerResetMap_Pre, DHookCallback_PopulationManagerResetMap_Post);
 	CreateDynamicDetour(gamedata, "CTFGameRules::IsQuickBuildTime", DHookCallback_IsQuickBuildTime_Pre, DHookCallback_IsQuickBuildTime_Post);
 	CreateDynamicDetour(gamedata, "CTFGameRules::GameModeUsesUpgrades", _, DHookCallback_GameModeUsesUpgrades_Post);
@@ -48,7 +60,7 @@ void DHooks_Initialize(GameData gamedata)
 	CreateDynamicDetour(gamedata, "CBaseObject::FindSnapToBuildPos", DHookCallback_FindSnapToBuildPos_Pre, DHookCallback_FindSnapToBuildPos_Post);
 	CreateDynamicDetour(gamedata, "CBaseObject::ShouldQuickBuild", DHookCallback_ShouldQuickBuild_Pre, DHookCallback_ShouldQuickBuild_Post);
 	CreateDynamicDetour(gamedata, "CObjectSapper::ApplyRoboSapperEffects", DHookCallback_ApplyRoboSapperEffects_Pre, DHookCallback_ApplyRoboSapperEffects_Post);
-	
+
 	g_DHookMyTouch = CreateDynamicHook(gamedata, "CCurrencyPack::MyTouch");
 	g_DHookComeToRest = CreateDynamicHook(gamedata, "CCurrencyPack::ComeToRest");
 	g_DHookValidTouch = CreateDynamicHook(gamedata, "CTFPowerup::ValidTouch");
@@ -100,15 +112,53 @@ static void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallb
 	DynamicDetour detour = DynamicDetour.FromConf(gamedata, name);
 	if (detour)
 	{
-		if (callbackPre != INVALID_FUNCTION)
-			detour.Enable(Hook_Pre, callbackPre);
-		
-		if (callbackPost != INVALID_FUNCTION)
-			detour.Enable(Hook_Post, callbackPost);
+		DetourInfo info;
+		info.detour = detour;
+		strcopy(info.name, sizeof(info.name), name);
+		info.callbackPre = callbackPre;
+		info.callbackPost = callbackPost;
+		g_DetourInfo.PushArray(info);
 	}
 	else
 	{
-		LogError("Failed to create detour setup handle for %s", name);
+		LogError("Failed to create detour: %s", name);
+	}
+}
+
+void DHook_Enable()
+{
+	int length = g_DetourInfo.Length;
+	for (int i = 0; i < length; i++)
+	{
+		DetourInfo info;
+		g_DetourInfo.GetArray(i, info);
+		
+		if (info.callbackPre != INVALID_FUNCTION)
+			if (!info.detour.Enable(Hook_Pre, info.callbackPre))
+				LogError("Failed to enable pre detour: %s", info.name);
+		
+		if (info.callbackPost != INVALID_FUNCTION)
+			if (!info.detour.Enable(Hook_Post, info.callbackPost))
+				LogError("Failed to enable post detour: %s", info.name);
+	}
+}
+
+void DHook_Disable()
+{
+	int length = g_DetourInfo.Length;
+	// Don't disable DHookCallback_LoadUpgradesFile_Post, DHookCallback_PopulationManagerUpdate_Pre!
+	for (int i = 2; i < length; i++)
+	{
+		DetourInfo info;
+		g_DetourInfo.GetArray(i, info);
+		
+		if (info.callbackPre != INVALID_FUNCTION)
+			if (!info.detour.Disable(Hook_Pre, info.callbackPre))
+				LogError("Failed to disable pre detour: %s", info.name);
+		
+		if (info.callbackPost != INVALID_FUNCTION)
+			if (!info.detour.Disable(Hook_Post, info.callbackPost))
+				LogError("Failed to disable post detour: %s", info.name);
 	}
 }
 
@@ -120,6 +170,7 @@ static DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	
 	return hook;
 }
+
 public MRESReturn DHookCallback_LoadUpgradesFile_Post(Address address)
 {
 	g_MannVsMachineUpgrades = address;

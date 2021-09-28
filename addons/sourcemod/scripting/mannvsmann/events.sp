@@ -15,21 +15,83 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+enum struct EventInfo
+{
+	char name[64];
+	EventHook callback;
+	EventHookMode mode;
+	bool force;
+	bool hooked;
+}
+
+static ArrayList g_EventInfo;
+
 void Events_Initialize()
 {
-	HookEvent("teamplay_broadcast_audio", Event_TeamplayBroadcastAudio, EventHookMode_Pre);
-	HookEvent("teamplay_round_win", Event_TeamplayRoundWin);
-	HookEvent("teamplay_setup_finished", Event_TeamplaySetupFinished);
-	HookEvent("teamplay_round_start", Event_TeamplayRoundStart);
-	HookEvent("teamplay_restart_round", Event_TeamplayRestartRound);
-	HookEvent("arena_round_start", Event_ArenaRoundStart);
-	HookEvent("post_inventory_application", Event_PostInventoryApplication);
-	HookEvent("player_death", Event_PlayerDeath);
-	HookEvent("player_spawn", Event_PlayerSpawn);
-	HookEvent("player_changeclass", Event_PlayerChangeClass);
-	HookEvent("player_team", Event_PlayerTeam);
-	HookEvent("player_buyback", Event_PlayerBuyback, EventHookMode_Pre);
-	HookEvent("player_used_powerup_bottle", Event_PlayerUsedPowerupBottle, EventHookMode_Pre);
+	g_EventInfo = new ArrayList(sizeof(EventInfo));
+	
+	Event_Add("teamplay_broadcast_audio", Event_TeamplayBroadcastAudio, EventHookMode_Pre);
+	Event_Add("teamplay_round_win", Event_TeamplayRoundWin);
+	Event_Add("teamplay_setup_finished", Event_TeamplaySetupFinished);
+	Event_Add("teamplay_round_start", Event_TeamplayRoundStart);
+	Event_Add("teamplay_restart_round", Event_TeamplayRestartRound);
+	Event_Add("arena_round_start", Event_ArenaRoundStart);
+	Event_Add("post_inventory_application", Event_PostInventoryApplication);
+	Event_Add("player_death", Event_PlayerDeath);
+	Event_Add("player_spawn", Event_PlayerSpawn);
+	Event_Add("player_changeclass", Event_PlayerChangeClass);
+	Event_Add("player_team", Event_PlayerTeam);
+	Event_Add("player_buyback", Event_PlayerBuyback, EventHookMode_Pre);
+	Event_Add("player_used_powerup_bottle", Event_PlayerUsedPowerupBottle, EventHookMode_Pre);
+}
+
+void Event_Add(const char[] name, EventHook callback, EventHookMode mode = EventHookMode_Post, bool force = true)
+{
+	EventInfo info;
+	strcopy(info.name, sizeof(info.name), name);
+	info.callback = callback;
+	info.mode = mode;
+	info.force = force;
+	g_EventInfo.PushArray(info);
+}
+
+void Event_Enable()
+{
+	int length = g_EventInfo.Length;
+	for (int i = 0; i < length; i++)
+	{
+		EventInfo info;
+		g_EventInfo.GetArray(i, info);
+		
+		if (info.force)
+		{
+			HookEvent(info.name, info.callback, info.mode);
+			info.hooked = true;
+		}
+		else
+		{
+			info.hooked = HookEventEx(info.name, info.callback, info.mode);
+		}
+		
+		g_EventInfo.SetArray(i, info);
+	}
+}
+
+void Event_Disable()
+{
+	int length = g_EventInfo.Length;
+	for (int i = 0; i < length; i++)
+	{
+		EventInfo info;
+		g_EventInfo.GetArray(i, info);
+		
+		if (info.hooked)
+		{
+			UnhookEvent(info.name, info.callback, info.mode);
+			info.hooked = false;
+			g_EventInfo.SetArray(i, info);
+		}
+	}
 }
 
 public Action Event_TeamplayBroadcastAudio(Event event, const char[] name, bool dontBroadcast)

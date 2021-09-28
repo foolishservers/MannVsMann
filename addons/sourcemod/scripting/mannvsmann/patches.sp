@@ -26,7 +26,13 @@ void Patches_Initialize(GameData gamedata)
 	CreateMemoryPatch(g_MemoryPatchRadiusCurrencyCollectionCheck, "MemoryPatch_RadiusCurrencyCollectionCheck");
 }
 
-void Patches_Destroy()
+void Patches_Enable()
+{
+	if (g_MemoryPatchRadiusCurrencyCollectionCheck)
+		g_MemoryPatchRadiusCurrencyCollectionCheck.Enable();
+}
+
+void Patches_Disable()
 {
 	if (g_MemoryPatchRadiusCurrencyCollectionCheck)
 		g_MemoryPatchRadiusCurrencyCollectionCheck.Disable();
