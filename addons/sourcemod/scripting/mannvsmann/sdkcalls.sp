@@ -23,11 +23,11 @@ static Handle g_SDKCallGetEquippedWearableForLoadoutSlot;
 static Handle g_SDKCallCanRecieveMedigunChargeEffect;
 static Handle g_SDKCallReviveMarkerCreate;
 static Handle g_SDKCallRemoveImmediate;
+static Handle g_SDKCallDistributeCurrencyAmount;
 static Handle g_SDKCallGetBaseEntity;
 static Handle g_SDKCallShouldSwitchTeams;
 static Handle g_SDKCallShouldScrambleTeams;
 static Handle g_SDKCallGetNextRespawnWave;
-static Handle g_SDKCallLoadUpgradesFileFromPath;
 
 void SDKCalls_Initialize(GameData gamedata)
 {
@@ -39,11 +39,11 @@ void SDKCalls_Initialize(GameData gamedata)
 	g_SDKCallCanRecieveMedigunChargeEffect = PrepSDKCall_CanRecieveMedigunChargeEffect(gamedata);
 	g_SDKCallReviveMarkerCreate = PrepSDKCall_ReviveMarkerCreate(gamedata);
 	g_SDKCallRemoveImmediate = PrepSDKCall_RemoveImmediate(gamedata);
+	g_SDKCallDistributeCurrencyAmount = PrepSDKCall_DistributeCurrencyAmount(gamedata);
 	g_SDKCallGetBaseEntity = PrepSDKCall_GetBaseEntity(gamedata);
 	g_SDKCallShouldSwitchTeams = PrepSDKCall_ShouldSwitchTeams(gamedata);
 	g_SDKCallShouldScrambleTeams = PrepSDKCall_ShouldScrambleTeams(gamedata);
 	g_SDKCallGetNextRespawnWave = PrepSDKCall_GetNextRespawnWave(gamedata);
-	g_SDKCallLoadUpgradesFileFromPath = PrepSDKCall_LoadUpgradesFileFromPath(gamedata);
 }
 
 Handle PrepSDKCall_ResetMap(GameData gamedata)
@@ -157,6 +157,24 @@ Handle PrepSDKCall_RemoveImmediate(GameData gamedata)
 	return call;
 }
 
+Handle PrepSDKCall_DistributeCurrencyAmount(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_GameRules);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CTFGameRules::DistributeCurrencyAmount");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer, VDECODE_FLAG_ALLOWNULL);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+	
+	Handle call = EndPrepSDKCall();
+	if (!call)
+		LogMessage("Failed to create SDK call: CTFGameRules::DistributeCurrencyAmount");
+	
+	return call;
+}
+
 Handle PrepSDKCall_GetBaseEntity(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Raw);
@@ -208,19 +226,6 @@ Handle PrepSDKCall_GetNextRespawnWave(GameData gamedata)
 	if (!call)
 		LogMessage("Failed to create SDK call: CTFGameRules::GetNextRespawnWave");
 	
-	return call;
-}
-
-Handle PrepSDKCall_LoadUpgradesFileFromPath(GameData gamedata)
-{
-	StartPrepSDKCall(SDKCall_Raw);
-	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CMannVsMachineUpgradeManager::LoadUpgradesFileFromPath");
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-
-	Handle call = EndPrepSDKCall();
-	if (!call)
-		LogMessage("Failed to create SDK call: CMannVsMachineUpgradeManager::LoadUpgradesFileFromPath");
-
 	return call;
 }
 
@@ -280,6 +285,14 @@ void SDKCall_RemoveImmediate(int entity)
 		SDKCall(g_SDKCallRemoveImmediate, entity);
 }
 
+int SDKCall_DistributeCurrencyAmount(int amount, int player = -1, bool shared = true, bool countAsDropped = false, bool isBonus = false)
+{
+	if (g_SDKCallDistributeCurrencyAmount)
+		return SDKCall(g_SDKCallDistributeCurrencyAmount, amount, player, shared, countAsDropped, isBonus);
+	else
+		return 0;
+}
+
 int SDKCall_GetBaseEntity(Address address)
 {
 	if (g_SDKCallGetBaseEntity)
@@ -310,10 +323,4 @@ float SDKCall_GetNextRespawnWave(int team, int player)
 		return SDKCall(g_SDKCallGetNextRespawnWave, team, player);
 	
 	return 0.0;
-}
-
-void SDKCall_LoadUpgradesFileFromPath(char[] path)
-{
-	if(g_SDKCallLoadUpgradesFileFromPath)
-		SDKCall(g_SDKCallLoadUpgradesFileFromPath, g_MannVsMachineUpgrades, path);
 }

@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.1.0"
+#define PLUGIN_VERSION	"1.2.1"
 
 #define TF_GAMETYPE_ARENA		4
 #define MEDIGUN_CHARGE_INVULN	0
@@ -55,8 +55,8 @@ ConVar mvm_upgrades_reset_mode;
 ConVar mvm_spawn_protection;
 ConVar mvm_enable_music;
 ConVar mvm_nerf_upgrades;
-ConVar mvm_custom_upgrade;
 ConVar mvm_enable;
+ConVar mvm_custom_upgrades_file;
 
 //DHooks
 TFTeam g_CurrencyPackTeam;
@@ -68,8 +68,6 @@ int g_OffsetCurrencyPackAmount;
 int g_OffsetRestoringCheckpoint;
 
 //Other globals
-Address g_MannVsMachineUpgrades = Address_Null;
-char g_strCustomUpgradePath[PLATFORM_MAX_PATH];
 Handle g_HudSync;
 Menu g_RespecMenu;
 bool g_IsMapRunning;
@@ -100,22 +98,22 @@ public void OnPluginStart()
 	LoadTranslations("mannvsmann.phrases");
 	
 	CreateConVar("mvm_version", PLUGIN_VERSION, "Mann vs. Mann plugin version", FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_DONTRECORD);
+	mvm_enable = CreateConVar("mvm_enable", "1", "When set to 0, disable Mann vs. Mann");
 	mvm_currency_starting = CreateConVar("mvm_currency_starting", "1000", "Number of credits that players get at the start of a match.", _, true, 0.0);
 	mvm_currency_rewards_player_killed = CreateConVar("mvm_currency_rewards_player_killed", "15", "The fixed number of credits dropped by players on death.");
 	mvm_currency_rewards_player_count_bonus = CreateConVar("mvm_currency_rewards_player_count_bonus", "2.0", "Multiplier to dropped currency that gradually increases up to this value until all player slots have been filled.", _, true, 1.0);
 	mvm_currency_rewards_player_catchup_max = CreateConVar("mvm_currency_rewards_player_catchup_max", "1.5", "Maximum currency bonus multiplier for losing teams.", _, true, 1.0);
 	mvm_currency_hud_position_x = CreateConVar("mvm_currency_hud_position_x", "-1", "x coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
 	mvm_currency_hud_position_y = CreateConVar("mvm_currency_hud_position_y", "0.75", "y coordinate of the currency HUD message, from 0 to 1. -1.0 is the center.", _, true, -1.0, true, 1.0);
-	mvm_custom_upgrade = CreateConVar("mvm_custom_upgrade", "", "Set custom upgrades file for stations.");
-	mvm_enable = CreateConVar("mvm_enable", "1", "When set to 0, disable Mann vs. Mann");
-	
-	mvm_custom_upgrade.AddChangeHook(ConVar_CustomUpgrade);
-	mvm_enable.AddChangeHook(ConVar_EnableChanged);
-	
+		
 	mvm_upgrades_reset_mode = CreateConVar("mvm_upgrades_reset_mode", "0", "How player upgrades and credits are reset after a full round has been played. 0 = Reset upgrades and credits when teams are being switched. 1 = Always reset upgrades and credits. 2 = Never reset upgrades and credits.");
 	mvm_spawn_protection = CreateConVar("mvm_spawn_protection", "1", "When set to 1, players are granted ubercharge while they leave their spawn.");
 	mvm_enable_music = CreateConVar("mvm_enable_music", "1", "When set to 1, Mann vs. Machine music will play at the start and end of a round.");
 	mvm_nerf_upgrades = CreateConVar("mvm_nerf_upgrades", "1", "When set to 1, some upgrades will be modified to be fairer in player versus player modes.");
+	mvm_custom_upgrades_file = CreateConVar("mvm_custom_upgrades_file", "", "Custom upgrade menu file to use, set to an empty string to use the default.");
+	
+	mvm_enable.AddChangeHook(ConVar_EnableChanged);
+	mvm_custom_upgrades_file.AddChangeHook(ConVarChanged_CustomUpgradesFile);
 	
 	HookEntityOutput("team_round_timer", "On10SecRemain", EntityOutput_OnTimer10SecRemain);
 	
@@ -187,49 +185,11 @@ public void OnPluginEnd()
 	}
 }
 
-public void OnConfigsExecuted()
-{
-	if (IsMannVsMachineMode())
-	{
-		ResetMannVsMachineMode();
-	}
-}
-
 public void OnMapStart()
 {
 	g_IsMapRunning = true;
-	
+		
 	RefreshEnable();
-	
-	mvm_custom_upgrade.GetString(g_strCustomUpgradePath, PLATFORM_MAX_PATH);
-	LoadMVMCustomUpgrade();
-}
-
-public void ConVar_CustomUpgrade(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	strcopy(g_strCustomUpgradePath, PLATFORM_MAX_PATH, newValue);
-	LoadMVMCustomUpgrade();
-}
-
-public void ConVar_EnableChanged(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	RefreshEnable();
-}
-
-void LoadMVMCustomUpgrade()
-{
-	if(g_strCustomUpgradePath[0] != '\0')
-	{
-		// FIXME: Not working on first map.
-		LoadStationStats(g_strCustomUpgradePath);
-
-		if(g_MannVsMachineUpgrades != Address_Null)
-		{
-			char F[PLATFORM_MAX_PATH];
-			Format(F, sizeof(F), "scripts/items/%s.txt", g_strCustomUpgradePath);
-			SDKCall_LoadUpgradesFileFromPath(F);
-		}
-	}
 }
 
 void RefreshEnable()
@@ -254,6 +214,14 @@ void Enable()
 		
 	//An info_populator entity is required for a lot of MvM-related stuff (preserved entity)
 	CreateEntityByName("info_populator");
+	
+	//Set custom upgrades file on level init
+	char path[PLATFORM_MAX_PATH];
+	mvm_custom_upgrades_file.GetString(path, sizeof(path));
+	if (path[0] != '\0')
+	{
+		SetCustomUpgradesFile(path);
+	}
 	
 	if (IsInArenaMode())
 	{
@@ -511,6 +479,29 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 		if (!SDKCall_CanRecieveMedigunChargeEffect(GetPlayerShared(client), MEDIGUN_CHARGE_INVULN))
 		{
 			TF2_RemoveCondition(client, condition);
+		}
+	}
+}
+
+public void ConVar_EnableChanged(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	RefreshEnable();
+}
+
+public void ConVarChanged_CustomUpgradesFile(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	if (newValue[0] != '\0')
+	{
+		SetCustomUpgradesFile(newValue);
+	}
+	else
+	{
+		int gamerules = FindEntityByClassname(MaxClients + 1, "tf_gamerules");
+		if (gamerules != -1)
+		{
+			//Reset to the default upgrades file
+			SetVariantString("scripts/items/mvm_upgrades.txt");
+			AcceptEntityInput(gamerules, "SetCustomUpgradesFile");
 		}
 	}
 }

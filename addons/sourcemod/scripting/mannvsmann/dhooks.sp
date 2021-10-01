@@ -42,7 +42,6 @@ void DHooks_Initialize(GameData gamedata)
 {
 	g_DetourInfo = new ArrayList(sizeof(DetourInfo));
 	
-	CreateDynamicDetour(gamedata, "CMannVsMachineUpgradeManager::LoadUpgradesFile", _, DHookCallback_LoadUpgradesFile_Post);
 	CreateDynamicDetour(gamedata, "CPopulationManager::Update", DHookCallback_PopulationManagerUpdate_Pre, _);
 	CreateDynamicDetour(gamedata, "CUpgrades::ApplyUpgradeToItem", DHookCallback_ApplyUpgradeToItem_Pre, DHookCallback_ApplyUpgradeToItem_Post);	
 	CreateDynamicDetour(gamedata, "CPopulationManager::ResetMap", DHookCallback_PopulationManagerResetMap_Pre, DHookCallback_PopulationManagerResetMap_Post);
@@ -146,7 +145,7 @@ void DHook_Enable()
 void DHook_Disable()
 {
 	int length = g_DetourInfo.Length;
-	// Don't disable DHookCallback_LoadUpgradesFile_Post, DHookCallback_PopulationManagerUpdate_Pre!
+	// Don't disable DHookCallback_PopulationManagerUpdate_Pre!
 	for (int i = 2; i < length; i++)
 	{
 		DetourInfo info;
@@ -169,13 +168,6 @@ static DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 		LogError("Failed to create hook setup handle for %s", name);
 	
 	return hook;
-}
-
-public MRESReturn DHookCallback_LoadUpgradesFile_Post(Address address)
-{
-	g_MannVsMachineUpgrades = address;
-	//LogMessage("Loaded g_MannVsMachineUpgrades = %X", g_MannVsMachineUpgrades);
-	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_ApplyUpgradeToItem_Pre()
