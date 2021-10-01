@@ -146,7 +146,7 @@ void DHook_Disable()
 {
 	int length = g_DetourInfo.Length;
 	// Don't disable DHookCallback_PopulationManagerUpdate_Pre!
-	for (int i = 2; i < length; i++)
+	for (int i = 1; i < length; i++)
 	{
 		DetourInfo info;
 		g_DetourInfo.GetArray(i, info);
