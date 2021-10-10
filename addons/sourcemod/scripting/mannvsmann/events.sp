@@ -108,7 +108,7 @@ public Action Event_TeamplayBroadcastAudio(Event event, const char[] name, bool 
 		}
 		if (strcmp(sound, "Game.YourTeamWon") == 0)
 		{
-			event.SetString("sound", "music.mvm_end_mid_wave");
+			event.SetString("sound", IsInArenaMode() ? "music.mvm_end_wave" : "music.mvm_end_mid_wave");
 			return Plugin_Changed;
 		}
 		else if (strcmp(sound, "Game.YourTeamLost") == 0 || strcmp(sound, "Game.Stalemate") == 0)
@@ -217,7 +217,7 @@ public void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 		if (populator != -1)
 		{
 			//This should put us at the right currency, given that we've removed item and player upgrade tracking by this point
-			int totalAcquiredCurrency = MvMTeam(team).AcquiredCredits + mvm_currency_starting.IntValue;
+			int totalAcquiredCurrency = MvMTeam(team).AcquiredCredits + MvMPlayer(client).AcquiredCredits + mvm_currency_starting.IntValue;
 			int spentCurrency = SDKCall_GetPlayerCurrencySpent(populator, client);
 			MvMPlayer(client).Currency = totalAcquiredCurrency - spentCurrency;
 		}
