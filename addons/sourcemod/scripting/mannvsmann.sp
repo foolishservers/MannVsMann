@@ -354,6 +354,10 @@ public Action OnClientCommandKeyValues(int client, KeyValues kv)
 	{
 		if (strncmp(section, "MvM_", 4, false) == 0)
 		{
+			int isMiniBoss = GetEntProp(client, Prop_Send, "m_bIsMiniBoss");
+			
+			if(isMiniBoss) return Plugin_Continue;
+		
 			//Enable MvM for client commands to be processed in CTFGameRules::ClientCommandKeyValues 
 			SetMannVsMachineMode(true);
 			
@@ -459,6 +463,27 @@ public void OnClientCommandKeyValues_Post(int client, KeyValues kv)
 			{
 				SetVariantString("IsMvMDefender");
 				AcceptEntityInput(client, "RemoveContext");
+			}
+			else if(strcmp(section, "MVM_Respec") == 0)
+			{
+				int populator = FindEntityByClassname(MaxClients + 1, "info_populator");
+				if (populator != -1)
+				{
+					//This should put us at the right currency, given that we've removed item and player upgrade tracking by this point
+					int totalAcquiredCurrency = MvMTeam(TF2_GetClientTeam(client)).AcquiredCredits + MvMPlayer(client).AcquiredCredits + mvm_currency_starting.IntValue;
+					int spentCurrency = SDKCall_GetPlayerCurrencySpent(populator, client);
+					MvMPlayer(client).Currency = totalAcquiredCurrency - spentCurrency;
+				}
+					
+				if (IsInArenaMode())
+				{
+					if (GetEntProp(client, Prop_Send, "m_bInUpgradeZone"))
+					{
+						MvMPlayer(client).IsClosingUpgradeMenu = true;
+					}
+						
+					SetEntProp(client, Prop_Send, "m_bInUpgradeZone", false);
+				}
 			}
 		}
 	}
@@ -595,25 +620,6 @@ public int MenuHandler_UpgradeRespec(Menu menu, MenuAction action, int param1, i
 				if (strcmp(info, "respec") == 0)
 				{
 					MvMPlayer(param1).RemoveAllUpgrades();
-					
-					int populator = FindEntityByClassname(MaxClients + 1, "info_populator");
-					if (populator != -1)
-					{
-						//This should put us at the right currency, given that we've removed item and player upgrade tracking by this point
-						int totalAcquiredCurrency = MvMTeam(TF2_GetClientTeam(param1)).AcquiredCredits + MvMPlayer(param1).AcquiredCredits + mvm_currency_starting.IntValue;
-						int spentCurrency = SDKCall_GetPlayerCurrencySpent(populator, param1);
-						MvMPlayer(param1).Currency = totalAcquiredCurrency - spentCurrency;
-					}
-					
-					if (IsInArenaMode())
-					{
-						if (GetEntProp(param1, Prop_Send, "m_bInUpgradeZone"))
-						{
-							MvMPlayer(param1).IsClosingUpgradeMenu = true;
-						}
-						
-						SetEntProp(param1, Prop_Send, "m_bInUpgradeZone", false);
-					}
 				}
 			}
 		}
