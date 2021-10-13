@@ -43,6 +43,7 @@ void Events_Initialize()
 	Event_Add("player_team", Event_PlayerTeam);
 	Event_Add("player_buyback", Event_PlayerBuyback, EventHookMode_Pre);
 	Event_Add("player_used_powerup_bottle", Event_PlayerUsedPowerupBottle, EventHookMode_Pre);
+	Event_Add("mvm_pickup_currency", Event_PlayerPickupCurrency, EventHookMode_Pre);
 }
 
 void Event_Add(const char[] name, EventHook callback, EventHookMode mode = EventHookMode_Post, bool force = true)
@@ -353,4 +354,27 @@ public Action Event_PlayerUsedPowerupBottle(Event event, const char[] name, bool
 	}
 	
 	return Plugin_Changed;
+}
+
+public Action Event_PlayerPickupCurrency(Event event, const char[] name, bool dontBroadcast)
+{
+	int player = event.GetInt("player");
+	int currency = event.GetInt("currency");
+	
+	// This attribute is not implemented in TF2, let's do it ourselves
+	Address currency_bonus = TF2Attrib_GetByName(player, "currency bonus");
+	if (currency_bonus)
+	{
+		int newCurrency = RoundToCeil(currency * TF2Attrib_GetValue(currency_bonus));
+		int bonusCurrency = newCurrency - currency;
+		
+		// Give the player the bonus currency
+		MvMPlayer(player).Currency += bonusCurrency;
+		MvMPlayer(player).AcquiredCredits += bonusCurrency;
+		
+		event.SetInt("currency", newCurrency);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
 }
