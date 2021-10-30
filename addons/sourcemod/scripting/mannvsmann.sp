@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.3.0"
+#define PLUGIN_VERSION	"1.3.1"
 
 #define SOUND_CREDITS_UPDATED	"ui/credits_updated.wav"
 
@@ -356,6 +356,15 @@ public void OnEntityCreated(int entity, const char[] classname)
 		// Do not allow dropped weapons, as you can sell their upgrades for free currency
 		RemoveEntity(entity);
 	}
+	
+	if (IsInArenaMode())
+	{
+		if (strcmp(classname, "tf_powerup_bottle") == 0)
+		{
+			// Canteens can't be activated in arena mode, so just remove any powerup bottles
+			RemoveEntity(entity);
+		}
+	}
 }
 
 public void OnEntityDestroyed(int entity)
@@ -387,7 +396,7 @@ public void OnEntityDestroyed(int entity)
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
-	if(!g_Enabled) return;
+	if(!g_Enabled) return Plugin_Continue;
 
 	if (buttons & IN_ATTACK2)
 	{
@@ -400,6 +409,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetMannVsMachineMode(true);
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
@@ -613,7 +624,7 @@ public void ConVarChanged_CustomUpgradesFile(ConVar convar, const char[] oldValu
 
 public Action EntityOutput_OnTimer10SecRemain(const char[] output, int caller, int activator, float delay)
 {
-	if(!g_Enabled) return;
+	if(!g_Enabled) return Plugin_Continue;
 
 	if (mvm_enable_music.BoolValue)
 	{
@@ -627,6 +638,8 @@ public Action EntityOutput_OnTimer10SecRemain(const char[] output, int caller, i
 			EmitGameSoundToAll("music.mvm_start_wave");
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 public Action NormalSoundHook(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
@@ -667,7 +680,7 @@ public Action NormalSoundHook(int clients[MAXPLAYERS], int &numClients, char sam
 
 public Action Timer_UpdateHudText(Handle timer)
 {
-	if(!g_Enabled) return;
+	if(!g_Enabled) return Plugin_Continue;
 
 	SetHudTextParams(mvm_currency_hud_position_x.FloatValue, mvm_currency_hud_position_y.FloatValue, 0.1, 122, 196, 55, 255);
 	
@@ -691,6 +704,8 @@ public Action Timer_UpdateHudText(Handle timer)
 			}
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 public int MenuHandler_UpgradeRespec(Menu menu, MenuAction action, int param1, int param2)
@@ -704,7 +719,7 @@ public int MenuHandler_UpgradeRespec(Menu menu, MenuAction action, int param1, i
 			{
 				if (strcmp(info, "respec") == 0)
 				{
-					MvMPlayer(param1).RemoveAllUpgrades();
+					MvMPlayer(param1).RespecUpgrades();
 				}
 			}
 		}
