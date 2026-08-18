@@ -809,24 +809,24 @@
 					"verify"	"\x74"
 					"patch"		"\xEB"
 				}
-				"linux64"
-				{
-					"offset"	"23h"
-					"verify"	"\x74"
-					"patch"		"\xEB"
-				}
+				//"linux64"
+				//{
+				//	"offset"	"23h"
+				//	"verify"	"\x74"
+				//	"patch"		"\xEB"
+				//}
 				"windows"
 				{
 					"offset"	"1Ah"
 					"verify"	"\x74"
 					"patch"		"\xEB"
 				}
-				"windows64"
-				{
-					"offset"	"1Bh"
-					"verify"	"\x74"
-					"patch"		"\xEB"
-				}
+				//"windows64"
+				//{
+				//	"offset"	"1Bh"
+				//	"verify"	"\x74"
+				//	"patch"		"\xEB"
+				//}
 			}
 		}
 	}

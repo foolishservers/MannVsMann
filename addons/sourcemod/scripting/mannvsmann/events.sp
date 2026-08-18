@@ -16,6 +16,7 @@ void Events_Init()
 	PSM_AddEventHook("player_buyback", EventHook_PlayerBuyback, EventHookMode_Pre);
 	PSM_AddEventHook("player_used_powerup_bottle", EventHook_PlayerUsedPowerupBottle, EventHookMode_Pre);
 	PSM_AddEventHook("mvm_pickup_currency", EventHook_PlayerPickupCurrency, EventHookMode_Pre);
+	PSM_AddEventHook("object_destroyed", EventHook_ObjectDestroyed);
 }
 
 static Action EventHook_TeamplayBroadcastAudio(Event event, const char[] name, bool dontBroadcast)
@@ -100,6 +101,10 @@ static void EventHook_ArenaRoundStart(Event event, const char[] name, bool dontB
 static void EventHook_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(IsFakeClient(client))
+	{
+		return;
+	}
 	TFTeam team = view_as<TFTeam>(event.GetInt("team"));
 	
 	if (team > TFTeam_Spectator)
@@ -144,6 +149,16 @@ static void EventHook_PlayerDeath(Event event, const char[] name, bool dontBroad
 								headshotEvent.Fire();
 							}
 						}
+					}
+				}
+
+				TFTeam attackerTeam = TF2_GetClientTeam(attacker);
+				for (int client = 1; client <= MaxClients; client++)
+				{
+					if (IsValidClient(client) && TF2_GetClientTeam(client) == attackerTeam)
+					{
+						MvMPlayer(client).Currency += dropAmount;
+						MvMPlayer(client).AcquiredCredits += dropAmount;
 					}
 				}
 				
@@ -354,5 +369,32 @@ static void RequestFrameCallback_SpeakDeathResponses(int userid)
 		}
 		
 		delete players;
+	}
+}
+
+public void EventHook_ObjectDestroyed(Event event, const char[] name, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(!IsValidClient(attacker))
+	{
+		return;
+	}
+
+	TFTeam team = view_as<TFTeam>(event.GetInt("team"));
+	TFTeam attackerTeam = TF2_GetClientTeam(attacker);
+	if(team != attackerTeam)
+	{
+		int dropAmount = CalculateCurrencyAmount(attacker);
+		if (dropAmount)
+		{
+			for (int client = 1; client <= MaxClients; client++)
+			{
+				if (IsValidClient(client) && TF2_GetClientTeam(client) == attackerTeam)
+				{
+					MvMPlayer(client).Currency += dropAmount;
+					MvMPlayer(client).AcquiredCredits += dropAmount;
+				}
+			}
+		}
 	}
 }
