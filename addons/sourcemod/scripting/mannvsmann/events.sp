@@ -153,12 +153,12 @@ static void EventHook_PlayerDeath(Event event, const char[] name, bool dontBroad
 				}
 
 				TFTeam attackerTeam = TF2_GetClientTeam(attacker);
+				MvMTeam(attackerTeam).AcquiredCredits += dropAmount;
 				for (int client = 1; client <= MaxClients; client++)
 				{
 					if (IsValidClient(client) && TF2_GetClientTeam(client) == attackerTeam)
 					{
 						MvMPlayer(client).Currency += dropAmount;
-						MvMPlayer(client).AcquiredCredits += dropAmount;
 					}
 				}
 				
@@ -317,10 +317,19 @@ static Action EventHook_PlayerPickupCurrency(Event event, const char[] name, boo
 	// This attribute is not implemented in TF2, let's do it ourselves
 	int newCurrency = RoundToCeil(currency * TF2Attrib_HookValueFloat(1.0, "currency_bonus", player));
 	int bonusCurrency = newCurrency - currency;
-	
-	// Give the player the bonus currency
-	MvMPlayer(player).Currency += bonusCurrency;
-	MvMPlayer(player).AcquiredCredits += bonusCurrency;
+	if (bonusCurrency > 0)
+	{
+		TFTeam team = TF2_GetClientTeam(player);
+		MvMTeam(team).AcquiredCredits += bonusCurrency;
+		
+		for (int client = 1; client <= MaxClients; client++)
+		{
+			if (IsValidClient(client) && TF2_GetClientTeam(client) == team)
+			{
+				MvMPlayer(client).Currency += bonusCurrency;
+			}
+		}
+	}
 	
 	event.SetInt("currency", newCurrency);
 	return Plugin_Changed;
@@ -387,12 +396,12 @@ public void EventHook_ObjectDestroyed(Event event, const char[] name, bool dontB
 		int dropAmount = CalculateCurrencyAmount(attacker);
 		if (dropAmount)
 		{
+			MvMTeam(attackerTeam).AcquiredCredits += dropAmount;
 			for (int client = 1; client <= MaxClients; client++)
 			{
 				if (IsValidClient(client) && TF2_GetClientTeam(client) == attackerTeam)
 				{
 					MvMPlayer(client).Currency += dropAmount;
-					MvMPlayer(client).AcquiredCredits += dropAmount;
 				}
 			}
 		}
